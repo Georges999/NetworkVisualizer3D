@@ -1,10 +1,12 @@
-# 🌐 NetworkVisualizer3D - Advanced Network Traffic Analyzer
+# 🌐 NetworkVisualizer3D - Web-Based Network Visualization
 
-[![.NET](https://img.shields.io/badge/.NET-9.0-blue.svg)](https://dotnet.microsoft.com/)
+[![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
+[![React](https://img.shields.io/badge/React-18+-blue.svg)](https://reactjs.org/)
+[![Three.js](https://img.shields.io/badge/Three.js-Latest-orange.svg)](https://threejs.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://www.microsoft.com/windows)
+[![Platform](https://img.shields.io/badge/platform-Cross--Platform-lightgrey.svg)](https://nodejs.org/)
 
-> A powerful, real-time network traffic analysis and 3D visualization tool for security monitoring, network diagnostics, and traffic analysis.
+> A modern web-based 3D network visualization tool that discovers and displays network devices and their connections in real-time using Three.js and React.
 
 ## ✨ Overview
 
