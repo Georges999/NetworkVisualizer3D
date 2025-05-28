@@ -1,69 +1,69 @@
 import React from 'react';
 import {
-  Card,
-  CardContent,
+  Paper,
   Typography,
   Box,
   LinearProgress,
   Chip,
-  Grid
+  Grid,
 } from '@mui/material';
 import {
   Computer,
   NetworkCheck,
   Speed,
-  DataUsage
+  DataUsage,
+  ShowChart,
 } from '@mui/icons-material';
 
-interface NetworkStats {
-  totalDevices: number;
-  activeConnections: number;
-  packetsPerSecond: number;
-  bytesPerSecond: number;
-  protocolDistribution: { [key: string]: number };
+interface StatsProps {
+  stats: {
+    totalDevices: number;
+    activeConnections: number;
+    packetsPerSecond: number;
+    bytesPerSecond: number;
+    protocolDistribution: { [key: string]: number };
+  };
 }
 
-interface StatsPanelProps {
-  stats: NetworkStats;
-}
-
-const StatsPanel: React.FC<StatsPanelProps> = ({ stats }) => {
+const StatsPanel: React.FC<StatsProps> = ({ stats }) => {
   const formatBytes = (bytes: number) => {
-    if (bytes === 0) return '0 B';
+    if (bytes === 0) return '0 Bytes';
     const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const getProtocolColor = (protocol: string) => {
-    switch (protocol) {
-      case 'TCP': return '#2196f3';
-      case 'UDP': return '#ff9800';
-      case 'HTTP': return '#4caf50';
-      case 'HTTPS': return '#8bc34a';
-      case 'ICMP': return '#f44336';
-      default: return '#9e9e9e';
-    }
+  const formatNumber = (num: number) => {
+    return new Intl.NumberFormat().format(num);
+  };
+
+  const protocolColors: { [key: string]: string } = {
+    TCP: '#2196f3',
+    UDP: '#4caf50',
+    ICMP: '#ff9800',
+    HTTP: '#f44336',
+    HTTPS: '#9c27b0',
   };
 
   return (
-    <Card sx={{ mb: 2 }}>
-      <CardContent>
-        <Typography variant="h6" gutterBottom>
-          Network Statistics
-        </Typography>
-        
+    <Paper sx={{ p: 3, mb: 2 }}>
+      <Box display="flex" alignItems="center" mb={2}>
+        <ShowChart sx={{ mr: 1, color: '#1976d2' }} />
+        <Typography variant="h6">Network Statistics</Typography>
+      </Box>
+      
+      <Box>
         <Grid container spacing={2}>
           <Grid item xs={6}>
             <Box display="flex" alignItems="center" mb={1}>
               <Computer sx={{ mr: 1, color: '#2196f3' }} />
               <Box>
-                <Typography variant="h4" component="div">
-                  {stats.totalDevices}
-                </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Devices
+                  Total Devices
+                </Typography>
+                <Typography variant="h6">
+                  {stats.totalDevices}
                 </Typography>
               </Box>
             </Box>
@@ -73,11 +73,11 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ stats }) => {
             <Box display="flex" alignItems="center" mb={1}>
               <NetworkCheck sx={{ mr: 1, color: '#4caf50' }} />
               <Box>
-                <Typography variant="h4" component="div">
-                  {stats.activeConnections}
-                </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Connections
+                  Active Connections
+                </Typography>
+                <Typography variant="h6">
+                  {stats.activeConnections}
                 </Typography>
               </Box>
             </Box>
@@ -87,11 +87,11 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ stats }) => {
             <Box display="flex" alignItems="center" mb={1}>
               <Speed sx={{ mr: 1, color: '#ff9800' }} />
               <Box>
-                <Typography variant="h4" component="div">
-                  {stats.packetsPerSecond.toFixed(0)}
-                </Typography>
                 <Typography variant="body2" color="text.secondary">
                   Packets/sec
+                </Typography>
+                <Typography variant="h6">
+                  {formatNumber(stats.packetsPerSecond)}
                 </Typography>
               </Box>
             </Box>
@@ -101,26 +101,35 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ stats }) => {
             <Box display="flex" alignItems="center" mb={1}>
               <DataUsage sx={{ mr: 1, color: '#9c27b0' }} />
               <Box>
-                <Typography variant="h4" component="div">
-                  {formatBytes(stats.bytesPerSecond)}/s
-                </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Throughput
+                  Bandwidth
+                </Typography>
+                <Typography variant="h6">
+                  {formatBytes(stats.bytesPerSecond)}/s
                 </Typography>
               </Box>
             </Box>
           </Grid>
         </Grid>
-
+        
         <Box mt={3}>
-          <Typography variant="subtitle1" gutterBottom>
+          <Typography variant="subtitle2" gutterBottom>
             Protocol Distribution
           </Typography>
           {Object.entries(stats.protocolDistribution).map(([protocol, percentage]) => (
             <Box key={protocol} mb={1}>
               <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
-                <Typography variant="body2">{protocol}</Typography>
-                <Typography variant="body2">{percentage.toFixed(1)}%</Typography>
+                <Chip
+                  label={protocol}
+                  size="small"
+                  sx={{
+                    backgroundColor: protocolColors[protocol] || '#757575',
+                    color: 'white',
+                  }}
+                />
+                <Typography variant="body2" color="text.secondary">
+                  {percentage.toFixed(1)}%
+                </Typography>
               </Box>
               <LinearProgress
                 variant="determinate"
@@ -130,31 +139,15 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ stats }) => {
                   borderRadius: 3,
                   backgroundColor: '#e0e0e0',
                   '& .MuiLinearProgress-bar': {
-                    backgroundColor: getProtocolColor(protocol),
-                    borderRadius: 3,
+                    backgroundColor: protocolColors[protocol] || '#757575',
                   },
                 }}
               />
             </Box>
           ))}
         </Box>
-
-        <Box mt={2} display="flex" flexWrap="wrap" gap={1}>
-          {Object.entries(stats.protocolDistribution).map(([protocol, percentage]) => (
-            <Chip
-              key={protocol}
-              label={`${protocol}: ${percentage.toFixed(1)}%`}
-              size="small"
-              sx={{
-                backgroundColor: getProtocolColor(protocol),
-                color: 'white',
-                fontWeight: 'bold'
-              }}
-            />
-          ))}
-        </Box>
-      </CardContent>
-    </Card>
+      </Box>
+    </Paper>
   );
 };
 

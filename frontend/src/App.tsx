@@ -1,46 +1,145 @@
 import React, { useState, useEffect } from 'react';
-import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Text, Html } from '@react-three/drei';
-import { io, Socket } from 'socket.io-client';
 import {
+  Box,
   AppBar,
   Toolbar,
   Typography,
-  Box,
   Paper,
-  Grid,
-  Card,
-  CardContent,
   Button,
-  Chip,
-  LinearProgress,
-  IconButton,
-  Drawer,
   List,
   ListItem,
   ListItemText,
   ListItemIcon,
-  Divider
+  Divider,
+  Container,
+  ThemeProvider,
+  createTheme,
+  CssBaseline,
+  Grid,
+  IconButton,
+  Drawer,
+  Tooltip,
+  Badge,
+  Fab,
+  Zoom,
+  alpha,
 } from '@mui/material';
 import {
+  NetworkCheck,
+  Refresh,
+  Search,
+  DeviceHub,
   Computer,
-  Router,
   Smartphone,
+  Router,
   Print,
   Tv,
-  Camera,
+  Videocam,
   Storage,
-  NetworkCheck,
-  PlayArrow,
-  Stop,
-  Settings,
-  Menu,
-  Close
+  WifiTethering,
+  Menu as MenuIcon,
+  Close,
+  Info,
+  Speed,
+  Security,
+  Cloud,
+  Lan,
 } from '@mui/icons-material';
-import NetworkScene from './components/NetworkScene';
-import DevicePanel from './components/DevicePanel';
+import io, { Socket } from 'socket.io-client';
+import NetworkVisualization from './components/NetworkVisualization';
 import StatsPanel from './components/StatsPanel';
+import DevicePanel from './components/DevicePanel';
 import './App.css';
+
+// Create a modern dark theme with matte colors
+const theme = createTheme({
+  palette: {
+    mode: 'dark',
+    primary: {
+      main: '#00ACC1', // Cyan
+      light: '#5DDEF4',
+      dark: '#007C91',
+    },
+    secondary: {
+      main: '#FF6F00', // Deep Orange
+      light: '#FF9E40',
+      dark: '#C43E00',
+    },
+    background: {
+      default: '#0A0E27',
+      paper: '#0F1729',
+    },
+    text: {
+      primary: '#E8EAED',
+      secondary: '#9AA0A6',
+    },
+    error: {
+      main: '#F44336',
+    },
+    warning: {
+      main: '#FF9800',
+    },
+    info: {
+      main: '#03A9F4',
+    },
+    success: {
+      main: '#4CAF50',
+    },
+  },
+  typography: {
+    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+    h1: {
+      fontWeight: 600,
+    },
+    h2: {
+      fontWeight: 600,
+    },
+    h3: {
+      fontWeight: 600,
+    },
+    h4: {
+      fontWeight: 600,
+    },
+    h5: {
+      fontWeight: 600,
+    },
+    h6: {
+      fontWeight: 600,
+    },
+  },
+  shape: {
+    borderRadius: 12,
+  },
+  components: {
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          backgroundImage: 'none',
+          backgroundColor: '#0F1729',
+          border: '1px solid rgba(255, 255, 255, 0.05)',
+        },
+      },
+    },
+    MuiAppBar: {
+      styleOverrides: {
+        root: {
+          backgroundImage: 'none',
+          backgroundColor: 'rgba(15, 23, 41, 0.95)',
+          backdropFilter: 'blur(10px)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+        },
+      },
+    },
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          textTransform: 'none',
+          fontWeight: 500,
+        },
+      },
+    },
+  },
+});
 
 interface Device {
   id: string;
@@ -49,8 +148,8 @@ interface Device {
   hostname: string;
   deviceType: string;
   position: { x: number; y: number; z: number };
-  lastSeen: string;
-  firstSeen: string;
+  lastSeen: Date;
+  firstSeen: Date;
   isOnline: boolean;
   responseTime: number;
   vendor: string;
@@ -65,8 +164,8 @@ interface Connection {
   connectionType: string;
   protocol: string;
   state: string;
-  startTime: string;
-  lastActivity: string;
+  startTime: Date;
+  lastActivity: Date;
   bytesTransferred: number;
   packetsCount: number;
   isActive: boolean;
@@ -80,7 +179,7 @@ interface NetworkStats {
   protocolDistribution: { [key: string]: number };
 }
 
-function App() {
+const App: React.FC = () => {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [devices, setDevices] = useState<Device[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
@@ -93,28 +192,72 @@ function App() {
   });
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
   const [isScanning, setIsScanning] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(true);
+  const [showInfo, setShowInfo] = useState(false);
+
+  // Device type icons mapping
+  const getDeviceIcon = (deviceType: string) => {
+    switch (deviceType) {
+      case 'Computer':
+        return <Computer />;
+      case 'MobilePhone':
+        return <Smartphone />;
+      case 'Tablet':
+        return <Smartphone />;
+      case 'Router':
+        return <Router />;
+      case 'Printer':
+        return <Print />;
+      case 'SmartTV':
+        return <Tv />;
+      case 'Camera':
+        return <Videocam />;
+      case 'Server':
+        return <Storage />;
+      case 'AccessPoint':
+        return <WifiTethering />;
+      default:
+        return <DeviceHub />;
+    }
+  };
+
+  // Device type colors
+  const getDeviceColor = (deviceType: string) => {
+    switch (deviceType) {
+      case 'Computer':
+        return theme.palette.info.main;
+      case 'MobilePhone':
+      case 'Tablet':
+        return theme.palette.success.main;
+      case 'Router':
+        return theme.palette.primary.main;
+      case 'Printer':
+        return theme.palette.secondary.main;
+      case 'SmartTV':
+        return theme.palette.warning.main;
+      case 'Camera':
+        return theme.palette.error.main;
+      case 'Server':
+        return '#9C27B0';
+      case 'AccessPoint':
+        return '#00BCD4';
+      default:
+        return theme.palette.grey[500];
+    }
+  };
 
   useEffect(() => {
-    // Connect to backend
     const newSocket = io('http://localhost:5000');
     setSocket(newSocket);
 
     newSocket.on('connect', () => {
       console.log('Connected to backend');
-      setIsConnected(true);
     });
 
-    newSocket.on('disconnect', () => {
-      console.log('Disconnected from backend');
-      setIsConnected(false);
-    });
-
-    newSocket.on('initialData', (data: {
-      devices: Device[];
-      connections: Connection[];
-      stats: NetworkStats;
+    newSocket.on('initialData', (data: { 
+      devices: Device[], 
+      connections: Connection[], 
+      stats: NetworkStats 
     }) => {
       setDevices(data.devices);
       setConnections(data.connections);
@@ -122,27 +265,17 @@ function App() {
     });
 
     newSocket.on('deviceDiscovered', (device: Device) => {
-      setDevices(prev => {
-        const existing = prev.find(d => d.id === device.id);
-        if (existing) {
-          return prev.map(d => d.id === device.id ? device : d);
-        }
-        return [...prev, device];
-      });
+      setDevices(prev => [...prev, device]);
     });
 
-    newSocket.on('deviceUpdated', (device: Device) => {
-      setDevices(prev => prev.map(d => d.id === device.id ? device : d));
+    newSocket.on('deviceUpdated', (updatedDevice: Device) => {
+      setDevices(prev => prev.map(d => 
+        d.id === updatedDevice.id ? updatedDevice : d
+      ));
     });
 
     newSocket.on('connectionEstablished', (connection: Connection) => {
-      setConnections(prev => {
-        const existing = prev.find(c => c.id === connection.id);
-        if (existing) {
-          return prev.map(c => c.id === connection.id ? connection : c);
-        }
-        return [...prev, connection];
-      });
+      setConnections(prev => [...prev, connection]);
     });
 
     newSocket.on('networkStats', (newStats: NetworkStats) => {
@@ -154,176 +287,215 @@ function App() {
     };
   }, []);
 
-  const handleStartScan = () => {
+  const handleScan = () => {
     if (socket) {
       setIsScanning(true);
       socket.emit('startScan');
-      setTimeout(() => setIsScanning(false), 5000); // Reset after 5 seconds
+      setTimeout(() => setIsScanning(false), 5000);
     }
   };
 
-  const getDeviceIcon = (deviceType: string) => {
-    switch (deviceType) {
-      case 'Router': return <Router />;
-      case 'Computer': return <Computer />;
-      case 'MobilePhone': return <Smartphone />;
-      case 'Printer': return <Print />;
-      case 'SmartTV': return <Tv />;
-      case 'Camera': return <Camera />;
-      case 'Server': return <Storage />;
-      default: return <Computer />;
+  // Group devices by type
+  const devicesByType = devices.reduce((acc, device) => {
+    if (!acc[device.deviceType]) {
+      acc[device.deviceType] = [];
     }
-  };
-
-  const formatBytes = (bytes: number) => {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
+    acc[device.deviceType].push(device);
+    return acc;
+  }, {} as { [key: string]: Device[] });
 
   return (
-    <div className="App">
-      <AppBar position="fixed" sx={{ zIndex: 1300 }}>
-        <Toolbar>
-          <IconButton
-            edge="start"
-            color="inherit"
-            onClick={() => setDrawerOpen(true)}
-            sx={{ mr: 2 }}
-          >
-            <Menu />
-          </IconButton>
-          <NetworkCheck sx={{ mr: 2 }} />
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            NetworkVisualizer3D
-          </Typography>
-          <Chip
-            label={isConnected ? 'Connected' : 'Disconnected'}
-            color={isConnected ? 'success' : 'error'}
-            variant="outlined"
-            sx={{ mr: 2 }}
-          />
-          <Button
-            variant="contained"
-            color={isScanning ? 'secondary' : 'primary'}
-            startIcon={isScanning ? <Stop /> : <PlayArrow />}
-            onClick={handleStartScan}
-            disabled={!isConnected}
-          >
-            {isScanning ? 'Scanning...' : 'Start Scan'}
-          </Button>
-        </Toolbar>
-      </AppBar>
-
-      <Drawer
-        anchor="left"
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        sx={{ zIndex: 1200 }}
-      >
-        <Box sx={{ width: 300, pt: 8 }}>
-          <List>
-            <ListItem>
-              <ListItemText
-                primary="Network Devices"
-                secondary={`${devices.length} devices discovered`}
-              />
-            </ListItem>
-            <Divider />
-            {devices.map((device) => (
-              <ListItem
-                key={device.id}
-                component="div"
-                onClick={() => {
-                  setSelectedDevice(device);
-                  setDrawerOpen(false);
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+        <AppBar position="fixed" elevation={0}>
+          <Toolbar>
+            <IconButton
+              edge="start"
+              color="inherit"
+              aria-label="menu"
+              onClick={() => setDrawerOpen(!drawerOpen)}
+              sx={{ mr: 2 }}
+            >
+              {drawerOpen ? <Close /> : <MenuIcon />}
+            </IconButton>
+            
+            <NetworkCheck sx={{ mr: 2, color: theme.palette.primary.main }} />
+            <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 600 }}>
+              Network Visualizer 3D
+            </Typography>
+            
+            <Tooltip title="Learn about your network">
+              <IconButton
+                color="inherit"
+                onClick={() => setShowInfo(!showInfo)}
+                sx={{ mr: 2 }}
+              >
+                <Info />
+              </IconButton>
+            </Tooltip>
+            
+            <Tooltip title="Scan network for devices">
+              <Button
+                variant="contained"
+                startIcon={<Search />}
+                onClick={handleScan}
+                disabled={isScanning}
+                sx={{
+                  background: `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.primary.light} 90%)`,
+                  boxShadow: '0 3px 5px 2px rgba(0, 172, 193, .3)',
                 }}
               >
-                <ListItemIcon>
-                  {getDeviceIcon(device.deviceType)}
-                </ListItemIcon>
-                <ListItemText
-                  primary={device.hostname}
-                  secondary={`${device.ipAddress} - ${device.deviceType}`}
-                />
-                <Chip
-                  size="small"
-                  label={device.isOnline ? 'Online' : 'Offline'}
-                  color={device.isOnline ? 'success' : 'error'}
-                />
-              </ListItem>
-            ))}
-          </List>
-        </Box>
-      </Drawer>
-
-      <Box sx={{ pt: 8, height: '100vh', display: 'flex' }}>
-        <Box sx={{ flex: 1, position: 'relative' }}>
-          <Canvas
-            camera={{ position: [100, 100, 100], fov: 60 }}
-            style={{ background: 'linear-gradient(to bottom, #0a0a0a, #1a1a2e)' }}
-          >
-            <ambientLight intensity={0.3} />
-            <pointLight position={[100, 100, 100]} intensity={1} />
-            <pointLight position={[-100, -100, -100]} intensity={0.5} />
-            <OrbitControls
-              enablePan={true}
-              enableZoom={true}
-              enableRotate={true}
-              maxDistance={500}
-              minDistance={50}
-            />
-            <NetworkScene
-              devices={devices}
-              connections={connections}
-              onDeviceClick={setSelectedDevice}
-            />
-          </Canvas>
-
-          {isScanning && (
-            <Box
+                {isScanning ? 'Scanning...' : 'Scan Network'}
+              </Button>
+            </Tooltip>
+          </Toolbar>
+        </AppBar>
+        
+        <Drawer
+          anchor="left"
+          open={drawerOpen}
+          variant="persistent"
+          sx={{
+            width: drawerOpen ? 380 : 0,
+            flexShrink: 0,
+            '& .MuiDrawer-paper': {
+              width: 380,
+              boxSizing: 'border-box',
+              backgroundColor: theme.palette.background.paper,
+              borderRight: '1px solid rgba(255, 255, 255, 0.05)',
+              transition: theme.transitions.create(['width', 'margin'], {
+                easing: theme.transitions.easing.sharp,
+                duration: theme.transitions.duration.enteringScreen,
+              }),
+            },
+          }}
+        >
+          <Toolbar />
+          <Box sx={{ overflow: 'auto', p: 2 }}>
+            <StatsPanel stats={stats} />
+            
+            {selectedDevice && (
+              <Zoom in={true}>
+                <Box>
+                  <DevicePanel
+                    device={selectedDevice}
+                    connections={connections.filter(
+                      conn => conn.sourceIp === selectedDevice.ipAddress || 
+                              conn.destinationIp === selectedDevice.ipAddress
+                    )}
+                    onClose={() => setSelectedDevice(null)}
+                  />
+                </Box>
+              </Zoom>
+            )}
+            
+            <Paper sx={{ p: 2, mt: 2 }}>
+              <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
+                <Lan sx={{ mr: 1, color: theme.palette.primary.main }} />
+                Devices by Type
+              </Typography>
+              <List dense>
+                {Object.entries(devicesByType).map(([type, typeDevices]) => (
+                  <Box key={type}>
+                    <ListItem sx={{ pl: 0 }}>
+                      <ListItemIcon sx={{ minWidth: 36 }}>
+                        <Badge badgeContent={typeDevices.length} color="primary">
+                          <Box sx={{ color: getDeviceColor(type) }}>
+                            {getDeviceIcon(type)}
+                          </Box>
+                        </Badge>
+                      </ListItemIcon>
+                      <ListItemText 
+                        primary={type}
+                        secondary={`${typeDevices.filter(d => d.isOnline).length} online`}
+                      />
+                    </ListItem>
+                  </Box>
+                ))}
+              </List>
+            </Paper>
+          </Box>
+        </Drawer>
+        
+        <Box
+          component="main"
+          sx={{
+            flexGrow: 1,
+            height: '100vh',
+            overflow: 'hidden',
+            backgroundColor: theme.palette.background.default,
+            marginLeft: drawerOpen ? 0 : '-380px',
+            transition: theme.transitions.create(['margin'], {
+              easing: theme.transitions.easing.sharp,
+              duration: theme.transitions.duration.leavingScreen,
+            }),
+          }}
+        >
+          <Toolbar />
+          <NetworkVisualization
+            devices={devices}
+            connections={connections}
+            onDeviceSelect={setSelectedDevice}
+            selectedDevice={selectedDevice}
+          />
+          
+          {showInfo && (
+            <Paper
               sx={{
                 position: 'absolute',
-                top: 16,
-                left: 16,
+                top: 80,
                 right: 16,
-                zIndex: 1000
+                width: 350,
+                p: 3,
+                backgroundColor: alpha(theme.palette.background.paper, 0.95),
+                backdropFilter: 'blur(10px)',
               }}
             >
-              <Paper sx={{ p: 2 }}>
-                <Typography variant="body2" gutterBottom>
-                  Scanning network for devices...
+              <Typography variant="h6" sx={{ mb: 2 }}>
+                Understanding Your Network
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 2 }}>
+                This visualization shows all devices connected to your network:
+              </Typography>
+              <Box sx={{ mb: 1 }}>
+                <Typography variant="subtitle2" color="primary">
+                  • Devices
                 </Typography>
-                <LinearProgress />
-              </Paper>
-            </Box>
+                <Typography variant="body2" color="text.secondary">
+                  Each sphere represents a device (computer, phone, printer, etc.)
+                </Typography>
+              </Box>
+              <Box sx={{ mb: 1 }}>
+                <Typography variant="subtitle2" color="primary">
+                  • Connections
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Lines show active network connections between devices
+                </Typography>
+              </Box>
+              <Box sx={{ mb: 1 }}>
+                <Typography variant="subtitle2" color="primary">
+                  • Colors
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Different colors indicate different device types and connection states
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" color="primary">
+                  • Interaction
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Click on any device to see detailed information about it
+                </Typography>
+              </Box>
+            </Paper>
           )}
         </Box>
-
-        <Box sx={{ width: 400, p: 2, overflow: 'auto' }}>
-          <Grid container spacing={2}>
-            <Grid item xs={12}>
-              <StatsPanel stats={stats} />
-            </Grid>
-            {selectedDevice && (
-              <Grid item xs={12}>
-                <DevicePanel
-                  device={selectedDevice}
-                  connections={connections.filter(
-                    c => c.sourceIp === selectedDevice.ipAddress ||
-                         c.destinationIp === selectedDevice.ipAddress
-                  )}
-                  onClose={() => setSelectedDevice(null)}
-                />
-              </Grid>
-            )}
-          </Grid>
-        </Box>
       </Box>
-    </div>
+    </ThemeProvider>
   );
-}
+};
 
 export default App;
